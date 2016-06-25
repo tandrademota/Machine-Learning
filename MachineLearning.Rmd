@@ -1,0 +1,75 @@
+---
+title: "Machine Learning"
+author: "Tiago"
+date: "June 21, 2016"
+---
+
+### Executive Summary ###
+
+In this project, we use data from accelerometers on belt, forearm, arm and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal is to predict the manner in which they did the exercise.
+
+To accomplish this task I used principal component analysis, and Random Forest without cross-validation. This approach reached 95% of correct answers. 
+
+### Simulations ###
+
+The code utilized is spread through all the report. However, in this section some introductory code is shown.
+
+Only the caret library was loaded at the begining.
+
+```{r,warning=FALSE,message=FALSE}
+library(caret)
+```
+
+Firstly, the test and train data were downloaded into the current directory, then, imported using commands below: 
+
+```{r, echo=TRUE}
+dataTrain <- read.csv("pml-training.csv")
+dim(dataTrain)
+dataTest <- read.csv("pml-testing.csv")
+dim(dataTest)
+```
+
+As we can see above, the training data contains 19622 registers and 160 variables whereas the testing data contains only 20 registers and 160 variables.
+
+## Predictors selection ##
+
+Analising the testing set, I checked 100 out of 160 variables with the twenty values equals to "NA". Since such values wouldn't be useful as predictors, they weren't considered in my model. The correspondent variables were disconsidered in training set too.
+
+Similarly, the seven first variables contain only administrative information, therefore, they were not used in the model. The code used to remove these undesired variables is showed below:
+
+```{r, echo=TRUE}
+CleanTest<-dataTest[,colSums(!is.na(dataTest))>0]
+CleanTrain <- dataTrain[,names(dataTrain) %in% names(CleanTest)]
+dim(CleanTrain)
+sTrain<-CleanTrain[,-(1:7)]
+sTest<-CleanTest[,-(1:7)]
+dim(sTest)
+```
+
+In this point, as the result of "dim" command above shows, we have 53 variables. In order to reduce the number of predictors, avoiding overfiting, principal component analysis was applied keeping 95% of variance.
+
+```{r, echo=TRUE}
+CleanTest <- lapply(sTest, as.numeric)
+x=lapply(sTrain, as.numeric)
+prep<-preProcess(as.data.frame(x),method="pca",thresh=.95)
+reducTrain <- predict(prep,as.data.frame(x))
+reducTest <- predict(prep,as.data.frame(CleanTest)[,-53])
+prep
+```
+
+After applying "pca" we end up with 25 predictors.
+
+## Fitting the best model ##
+
+Trying to find a machine learning to accomplish our classification task, I applied 10-fold cross-validation with "svm", "lda", and "randomForest". However, none of them reached an accuracy greater than 50%.
+
+The model that provided the best result, 95% correct answers, was radomForest without cross-validation, using the code below
+
+modFit <- train(dataTrain$classe ~ .,data=reducTrain, method="rf")
+
+TestResult <- predict(modFit,reducTest)
+
+B A (A) A A E D B A A B C B A E E A B B B
+
+The result above depicts the final model results, where the "A"value between parentesis represents the only wrong choice.
+
